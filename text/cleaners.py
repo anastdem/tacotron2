@@ -65,6 +65,9 @@ def convert_to_ascii(text):
   return unidecode(text)
 
 
+def identity_cleaners(text):
+  return text
+
 def basic_cleaners(text):
   '''Basic pipeline that lowercases and collapses whitespace without transliteration.'''
   text = lowercase(text)

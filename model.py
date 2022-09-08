@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 from layers import ConvNorm, LinearNorm
 from utils import to_gpu, get_mask_from_lengths
+from gst import GST
 
 
 class LocationLayer(nn.Module):
@@ -470,6 +471,17 @@ class Tacotron2(nn.Module):
         self.decoder = Decoder(hparams)
         self.postnet = Postnet(hparams)
 
+        if hparams.use_gst:
+            self.gst = GST(hparams)
+        else:
+            self.gst = None
+
+        if hparams.n_speakers > 1:
+            self.speaker_emb = nn.Embedding(hparams.n_speakers, hparams.symbols_embedding_dim)
+        else:
+            self.speaker_emb = None
+        self.speaker_emb_weight = hparams.speaker_emb_weight
+
     def parse_batch(self, batch):
         text_padded, input_lengths, mel_padded, gate_padded, \
             output_lengths = batch
@@ -501,8 +513,17 @@ class Tacotron2(nn.Module):
         text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
         embedded_inputs = self.embedding(text_inputs).transpose(1, 2)
-
         encoder_outputs = self.encoder(embedded_inputs, text_lengths)
+
+        if self.gst is not None:
+            gst_outputs, alphas = self.gst(inputs=mels.transpose(2, 1), input_lengths=output_lengths)
+            encoder_outputs += gst_outputs.expand_as(encoder_outputs)
+
+        # if self.speaker_emb is None:
+        #     spk_emb = 0
+        # else:
+        #     spk_emb = self.speaker_emb(speaker).unsqueeze(1)
+        #     spk_emb.mul_(self.speaker_emb_weight)
 
         mel_outputs, gate_outputs, alignments = self.decoder(
             encoder_outputs, mels, memory_lengths=text_lengths)
@@ -514,9 +535,18 @@ class Tacotron2(nn.Module):
             [mel_outputs, mel_outputs_postnet, gate_outputs, alignments],
             output_lengths)
 
-    def inference(self, inputs):
+    def inference(self, inputs, style_embed=None, gst_estimator=None):
+
         embedded_inputs = self.embedding(inputs).transpose(1, 2)
         encoder_outputs = self.encoder.inference(embedded_inputs)
+
+        if self.gst is not None and style_embed is not None:
+            encoder_outputs += style_embed.expand_as(encoder_outputs)
+
+        if self.gst is not None and gst_estimator is not None:
+            style_embed = gst_estimator(encoder_outputs)
+            encoder_outputs += style_embed.expand_as(encoder_outputs)
+
         mel_outputs, gate_outputs, alignments = self.decoder.inference(
             encoder_outputs)
 

@@ -16,7 +16,7 @@ def create_hparams(hparams_string=None, verbose=False):
         fp16_run=False,
         distributed_run=False,
         dist_backend="nccl",
-        dist_url="tcp://localhost:54321",
+        dist_url="tcp://localhost:54322",
         cudnn_enabled=True,
         cudnn_benchmark=False,
         ignore_layers=['embedding.weight'],
@@ -25,9 +25,13 @@ def create_hparams(hparams_string=None, verbose=False):
         # Data Parameters             #
         ################################
         load_mel_from_disk=False,
-        training_files='filelists/ljs_audio_text_train_filelist.txt',
-        validation_files='filelists/ljs_audio_text_val_filelist.txt',
-        text_cleaners=['english_cleaners'],
+        training_files='filelists/litres_data_train_emp.txt',
+        validation_files='filelists/litres_data_val_emp.txt',
+        # training_files='filelists/ruslan_data_train_phonems.txt',
+        # validation_files='filelists/ruslan_data_val_phonems.txt',
+        # text_cleaners=['transliteration_cleaners'],
+        text_cleaners=['basic_cleaners'],
+        # text_cleaners=['identity_cleaners'],
 
         ################################
         # Audio Parameters             #
@@ -81,8 +85,36 @@ def create_hparams(hparams_string=None, verbose=False):
         learning_rate=1e-3,
         weight_decay=1e-6,
         grad_clip_thresh=1.0,
-        batch_size=64,
-        mask_padding=True  # set model's padded outputs to padded values
+        batch_size=32,
+        mask_padding=True,  # set model's padded outputs to padded values
+
+        # guided (PAG) attention
+        attention_weight=1.0,
+        diagonal_factor=0.2,
+        include_padding=False,
+
+        # GST
+        gst_tokens=10,
+        gst_num_heads=8,
+
+        # GST reference encoder
+        use_gst=True,
+        ref_enc_filters=[32, 32, 64, 64, 128, 128],
+        p_gst_dropout=0.1,
+        # ref_enc_kernel=[3, 3],
+        # ref_enc_strides=[2, 2],
+        # ref_enc_pad=[1, 1],
+
+        # GST estimator training parameters
+        gst_estimator_eval_interval=100,
+        gst_estimator_epochs=100,
+        gst_estimator_lr=1e-3,
+
+        gate_positive_weight=10.0,
+
+        n_speakers=1,
+        speaker_emb_weight=1,
+
     )
 
     if hparams_string:
