@@ -35,7 +35,7 @@ class Tacotron2Loss(nn.Module):
         gate_target.requires_grad = False
         gate_target = gate_target.view(-1, 1)
 
-        text_padded, input_lengths, mel_padded, max_len, output_lengths = model_input
+        text_padded, input_lengths, mel_padded, max_len, output_lengths, speacker_id = model_input
         mel_out, mel_out_postnet, gate_out, alignments = model_output
         gate_out = gate_out.view(-1, 1)
         mel_loss = nn.MSELoss()(mel_out, mel_target) + \
@@ -51,4 +51,7 @@ class Tacotron2Loss(nn.Module):
             lpips_loss = [self.lpips_loss(mel_out_postnet[i, :, :output_lengths[i]], mel_target[i, :, :output_lengths[i]])
                          for i in range(mel_out_postnet.shape[0])]
 
-        return mel_loss + self.hparams.gate_positive_weight * gate_loss + attention_loss * self.hparams.attention_weight, torch.tensor(lpips_loss).mean()
+        return ((mel_loss
+                + self.hparams.gate_positive_weight * gate_loss
+                + attention_loss * self.hparams.attention_weight
+                + torch.tensor(lpips_loss).mean()), torch.tensor(lpips_loss).mean())

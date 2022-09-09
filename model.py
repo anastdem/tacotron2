@@ -484,16 +484,17 @@ class Tacotron2(nn.Module):
 
     def parse_batch(self, batch):
         text_padded, input_lengths, mel_padded, gate_padded, \
-            output_lengths = batch
+            output_lengths, speacker_id = batch
         text_padded = to_gpu(text_padded).long()
         input_lengths = to_gpu(input_lengths).long()
         max_len = torch.max(input_lengths.data).item()
         mel_padded = to_gpu(mel_padded).float()
         gate_padded = to_gpu(gate_padded).float()
         output_lengths = to_gpu(output_lengths).long()
+        speacker_id = to_gpu(speacker_id).long()
 
         return (
-            (text_padded, input_lengths, mel_padded, max_len, output_lengths),
+            (text_padded, input_lengths, mel_padded, max_len, output_lengths, speacker_id),
             (mel_padded, gate_padded))
 
     def parse_output(self, outputs, output_lengths=None):
@@ -509,7 +510,7 @@ class Tacotron2(nn.Module):
         return outputs
 
     def forward(self, inputs):
-        text_inputs, text_lengths, mels, max_len, output_lengths = inputs
+        text_inputs, text_lengths, mels, max_len, output_lengths, speaker_id = inputs
         text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
         embedded_inputs = self.embedding(text_inputs).transpose(1, 2)
@@ -519,11 +520,12 @@ class Tacotron2(nn.Module):
             gst_outputs, alphas = self.gst(inputs=mels.transpose(2, 1), input_lengths=output_lengths)
             encoder_outputs += gst_outputs.expand_as(encoder_outputs)
 
-        # if self.speaker_emb is None:
-        #     spk_emb = 0
-        # else:
-        #     spk_emb = self.speaker_emb(speaker).unsqueeze(1)
-        #     spk_emb.mul_(self.speaker_emb_weight)
+        if self.speaker_emb is None:
+            spk_emb = 0
+        else:
+            spk_emb = self.speaker_emb(speaker_id)
+            spk_emb.mul_(self.speaker_emb_weight)
+            encoder_outputs += spk_emb
 
         mel_outputs, gate_outputs, alignments = self.decoder(
             encoder_outputs, mels, memory_lengths=text_lengths)
@@ -535,7 +537,7 @@ class Tacotron2(nn.Module):
             [mel_outputs, mel_outputs_postnet, gate_outputs, alignments],
             output_lengths)
 
-    def inference(self, inputs, style_embed=None, gst_estimator=None):
+    def inference(self, inputs, speaker_id,  style_embed=None, gst_estimator=None):
 
         embedded_inputs = self.embedding(inputs).transpose(1, 2)
         encoder_outputs = self.encoder.inference(embedded_inputs)
@@ -546,6 +548,13 @@ class Tacotron2(nn.Module):
         if self.gst is not None and gst_estimator is not None:
             style_embed = gst_estimator(encoder_outputs)
             encoder_outputs += style_embed.expand_as(encoder_outputs)
+
+        if self.speaker_emb is None:
+            spk_emb = 0
+        else:
+            spk_emb = self.speaker_emb(speaker_id)
+            spk_emb.mul_(self.speaker_emb_weight)
+            encoder_outputs += spk_emb
 
         mel_outputs, gate_outputs, alignments = self.decoder.inference(
             encoder_outputs)

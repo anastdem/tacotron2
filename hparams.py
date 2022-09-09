@@ -18,20 +18,16 @@ def create_hparams(hparams_string=None, verbose=False):
         dist_backend="nccl",
         dist_url="tcp://localhost:54322",
         cudnn_enabled=True,
-        cudnn_benchmark=False,
+        cudnn_benchmark=True,
         ignore_layers=['embedding.weight'],
 
         ################################
         # Data Parameters             #
         ################################
         load_mel_from_disk=False,
-        training_files='filelists/litres_data_train_emp.txt',
-        validation_files='filelists/litres_data_val_emp.txt',
-        # training_files='filelists/ruslan_data_train_phonems.txt',
-        # validation_files='filelists/ruslan_data_val_phonems.txt',
-        # text_cleaners=['transliteration_cleaners'],
+        training_files='filelists/ms_data_train.txt',
+        validation_files='filelists/ms_data_val.txt',
         text_cleaners=['basic_cleaners'],
-        # text_cleaners=['identity_cleaners'],
 
         ################################
         # Audio Parameters             #
@@ -112,7 +108,7 @@ def create_hparams(hparams_string=None, verbose=False):
 
         gate_positive_weight=10.0,
 
-        n_speakers=1,
+        n_speakers=3,
         speaker_emb_weight=1,
 
     )
