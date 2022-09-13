@@ -552,6 +552,7 @@ class Tacotron2(nn.Module):
         if self.speaker_emb is None:
             spk_emb = 0
         else:
+            speaker_id = torch.LongTensor(torch.tensor(speaker_id)).cuda()
             spk_emb = self.speaker_emb(speaker_id)
             spk_emb.mul_(self.speaker_emb_weight)
             encoder_outputs += spk_emb
